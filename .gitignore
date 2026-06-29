@@ -1,23 +1,37 @@
-node_modules/
-.expo/
-dist/
-npm-debug.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-web-build/
-
-
-
-
-ios
-android
-
-# macOS
+# OSX
 .DS_Store
 
-# Temporary files created by Metro to check the health of the file watcher
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Native
+*.ios.js
+*.android.js
+*.jbuilder
+android/
+ios/
+
+# Metro
 .metro-health-check*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+
+# Misc
+*.log
+*.tsbuildinfo
+opencode.*

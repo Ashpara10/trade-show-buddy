@@ -3,36 +3,52 @@
     "name": "trade-show-buddy-mobile",
     "slug": "trade-show-buddy-mobile",
     "version": "1.0.0",
-
+    "scheme": "tsbmobile",
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "experiments": {
       "tsconfigPaths": true
     },
-
-    "plugins": [],
-
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Trade Show Buddy to access your camera to scan LinkedIn QR codes."
+        }
+      ],
+      "expo-audio"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "image": "./assets/splash-dark.png",
+        "backgroundColor": "#0a0a0a"
+      }
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.otto.tsbmobile",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#0f3a25"
+      },
+      "package": "ai.otto.tsbmobile",
+      "usesCleartextTraffic": true
     }
   }
 }

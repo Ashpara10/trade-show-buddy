@@ -1,3 +1,74 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Otto brand tokens ────────────────────────────────────────────────────
+ * Mirror of @tsb/app/globals.css (Otto light theme) plus a single
+ * lime/accent brand color (#CBFD40) used by the in-app Logo and any
+ * spot accents. CSS variables are exposed so inline styles can read them
+ * (e.g. backgroundColor: 'var(--color-brand)'); Tailwind classes
+ * (bg-brand, text-brand, border-brand) come from tailwind.config.js.
+ */
+:root {
+  color-scheme: light;
+
+  /* ── Brand: lime accent used by the Logo + primary CTAs ───────────────
+   * `brand`          – default fill (matches Tailwind `bg-brand`)
+   * `brand-hover`    – pressed/active state, ~12% darker, still AA on white
+   * `brand-soft`     – tinted background variant
+   * `brand-disabled` – desaturated brand for the disabled state. Stays
+   *                     in the brand family so the button doesn't look
+   *                     like a different component, but reads as "off"
+   *                     because it's ~50% lighter and ~30% less saturated
+   *                     than the resting brand color.
+   */
+  --color-brand: #CBFD40;
+  --color-brand-hover: #b8e32a;
+  --color-brand-soft: #ecffae;
+  --color-brand-disabled: #e7f5b5;
+
+  /* Disabled state — used for inactive buttons + the secondary "off" look.
+   * Slightly cooler than the page bg so the button still reads as a
+   * surface, not a hole. */
+  --color-button-disabled-bg: #f5f5f4;
+  --color-button-disabled-text: #a8a29e;
+
+  --color-otto-bg: #ffffff;
+  --color-otto-bg-soft: #fafaf9;
+  --color-otto-card: #ffffff;
+  --color-otto-card-hover: #f5f5f4;
+  --color-otto-border: #e7e5e4;
+  --color-otto-border-strong: #d6d3d1;
+  --color-otto-text: #1c1917;
+  --color-otto-text-soft: #44403c;
+  --color-otto-muted: #78716c;
+  --color-otto-accent: #16a34a;
+  --color-otto-accent-hover: #15803d;
+  --color-otto-accent-soft: #f0fdf4;
+  --color-otto-success: #16a34a;
+  --color-otto-warning: #f59e0b;
+  --color-otto-danger: #dc2626;
+}
+
+/* ─── Inter — global default font ──────────────────────────────────────────
+ * Loaded at app boot via expo-font. The 4 weights cover every Tailwind
+ * weight modifier (normal/medium/semibold/bold). On native we can't
+ * cascade font-family through a wildcard the way the web does, so the
+ * real load happens in two places:
+ *   1. RootLayout wraps the app in a <View> with style.fontFamily = 'Inter'
+ *      — RN's text inheritance picks it up for every <Text> inside.
+ *   2. The tailwind.config.js `fontFamily.sans` extension makes the
+ *      `font-sans` Tailwind class resolve to 'Inter' for any component
+ *      that wants to be explicit.
+ */
+html, body {
+  font-family: 'Inter';
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 360ms ease-out forwards;
+}
