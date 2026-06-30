@@ -18,7 +18,16 @@
           "cameraPermission": "Allow Trade Show Buddy to access your camera to scan LinkedIn QR codes."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -50,11 +59,7 @@
         "backgroundColor": "#0f3a25"
       },
       "package": "ai.otto.tsbmobile",
-      "usesCleartextTraffic": true,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
