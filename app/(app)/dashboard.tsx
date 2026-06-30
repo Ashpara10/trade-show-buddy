@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -87,43 +86,18 @@ export default function DashboardScreen() {
       ...events,
     ];
     sheet.open(
-      <BottomSheetFlatList
-        data={items}
-        keyExtractor={(e) => e.id || 'all'}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              setEventFilter(item.id);
-              sheet.close();
-            }}
-            style={({ pressed }) => [
-              styles.pickerRow,
-              eventFilter === item.id && styles.pickerRowActive,
-              pressed && { backgroundColor: colors.cardHover },
-            ]}>
-            <Text
-              style={[
-                styles.pickerLabel,
-                eventFilter === item.id
-                  ? { color: colors.accent, fontWeight: '600' }
-                  : { color: colors.text },
-              ]}
-              numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text
-              style={[
-                styles.pickerCount,
-                eventFilter === item.id ? { color: colors.accent } : { color: colors.muted },
-              ]}>
-              {pluralize(item.scan_count, 'scan', 'scans')}
-            </Text>
-          </Pressable>
-        )}
+      // The parent <BottomSheetModal> already wraps its content in a
+      // <BottomSheetScrollView>, so a virtualised list (FlatList) here
+      // would trip RN's "VirtualizedLists nested in plain ScrollViews"
+      // warning. Render a plain <ScrollView> with mapped rows — the
+      // event list is small and the sheet handles the scrolling.
+      <EventFilterSheetContent
+        items={items}
+        initialEventFilter={eventFilter}
+        onSelect={setEventFilter}
+        onClose={sheet.close}
       />,
-      { title: 'Filter by event', snapPoints: ['50%', '80%'] }
+      { title: 'Filter by event', snapPoints: ['60%', '80%'] }
     );
   }
 
@@ -240,7 +214,7 @@ export default function DashboardScreen() {
                     accessibilityRole="link"
                     onPress={() =>
                       Linking.openURL('https://www.ottoupdate.com/?utm_source=eventbuddyapp').catch(
-                        () => {}
+                        () => { }
                       )
                     }>
                     <Text className="text-[15px] font-medium text-otto-accent underline">
@@ -263,6 +237,86 @@ function Stat({ label, value }: { label: string; value: number }) {
       <Text className="text-xs uppercase tracking-[0.2em] text-otto-muted">{label}</Text>
       <Text className="mt-1 text-2xl font-semibold text-otto-text">{value}</Text>
     </View>
+  );
+}
+
+function EventFilterSheetContent({
+  items,
+  initialEventFilter,
+  onSelect,
+  onClose,
+}: {
+  items: Array<{ id: string | null; name: string; scan_count: number }>;
+  initialEventFilter: string | null;
+  onSelect: (id: string | null) => void;
+  onClose: () => void;
+}) {
+  const [active, setActive] = useState(initialEventFilter);
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator
+      keyboardShouldPersistTaps="handled"
+      // Auto-scroll to the currently-selected event so the user
+      // immediately sees which one is active when they open the
+      // sheet. The content height is small, so this also keeps the
+      // active row centred visually.
+      contentContainerStyle={{ paddingBottom: 8 }}>
+      {items.map((item, i) => {
+        const isActive = active === item.id;
+        return (
+          <View key={item.id || 'all'}>
+            {i > 0 ? <View style={styles.separator} /> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              onPress={() => {
+                // Update filter state immediately, then close the
+                // sheet on the next frame so the dashboard's filter
+                // row re-renders with the new value BEFORE the
+                // sheet's dismiss animation starts playing. Without
+                // this microtask, the user sees the sheet fade out
+                // first, then the row update — feels laggy. With
+                // it, the row updates instantly and the sheet
+                // dismisses on top of it.
+                setActive(item.id);
+                onSelect(item.id);
+                requestAnimationFrame(() => {
+                  onClose();
+                });
+              }}
+              className={`flex-row items-center justify-between rounded-xl px-3 py-3 ${isActive ? 'bg-otto-accent-soft' : ''
+                }`}
+              style={({ pressed }) => [
+                styles.pickerRow,
+                isActive && styles.pickerRowActive,
+                pressed && { backgroundColor: colors.cardHover },
+              ]}>
+              <Text
+                style={[
+                  styles.pickerLabel,
+                  isActive
+                    ? { color: colors.accent, fontWeight: '600' }
+                    : { color: colors.text },
+                ]}
+                numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text
+                style={[
+                  styles.pickerCount,
+                  isActive ? { color: colors.accent } : { color: colors.muted },
+                ]}>
+                {pluralize(item.scan_count, 'scan', 'scans')}
+              </Text>
+              {isActive ? (
+                <Text style={[styles.pickerCheck, { color: colors.accent }]}>✓</Text>
+              ) : null}
+            </Pressable>
+          </View>
+        );
+      })}
+    </ScrollView>
   );
 }
 
@@ -290,5 +344,10 @@ const styles = StyleSheet.create({
   pickerCount: {
     fontSize: 13,
     fontVariant: ['tabular-nums'],
+  },
+  pickerCheck: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

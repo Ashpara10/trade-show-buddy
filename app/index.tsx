@@ -225,10 +225,17 @@ export default function RegisterScreen() {
     <SafeAreaView className="flex-1 bg-otto-bg">
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        // Use 'padding' on both platforms so the keyboard pushes the
+        // form up instead of overlaying it. On iOS the offset is the
+        // top safe area + status bar; on Android `adjustResize` is on
+        // by default and the OS handles the resize, so we pass
+        // keyboardVerticalOffset=0 to let the system do the work.
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
           <View className="mx-auto w-full max-w-md gap-8 px-5 py-10">
             <View className="items-start gap-3">
               <Image
@@ -247,21 +254,33 @@ export default function RegisterScreen() {
             </View>
 
             {step === 'awaiting-code' ? (
-              <OtpCard
-                email={email}
-                code={code}
-                onCodeChange={onCodeChange}
-                onChangeEmail={() => {
-                  setStep('form');
-                  setCode('');
-                  setError('');
-                }}
-                onResend={() => resendCooldown === 0 && void handleSendCode(true)}
-                onVerify={() => void handleVerifyCode(code)}
-                resendCooldown={resendCooldown}
-                error={error}
-                codeInputRef={codeInputRef}
-              />
+              // When the OTP card is showing, the keyboard will pop up
+              // as soon as the input auto-focuses. Wrap the card in its
+              // own KeyboardAvoidingView so the parent page doesn't have
+              // to deal with two competing flex layouts (email form
+              // vs OTP form). `keyboardVerticalOffset` is the height of
+              // the iOS top safe area + the Otto hero image; on Android
+              // the OS already handles this via `adjustResize` by
+              // default so we use height/position behaviour on iOS only.
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+                <OtpCard
+                  email={email}
+                  code={code}
+                  onCodeChange={onCodeChange}
+                  onChangeEmail={() => {
+                    setStep('form');
+                    setCode('');
+                    setError('');
+                  }}
+                  onResend={() => resendCooldown === 0 && void handleSendCode(true)}
+                  onVerify={() => void handleVerifyCode(code)}
+                  resendCooldown={resendCooldown}
+                  error={error}
+                  codeInputRef={codeInputRef}
+                />
+              </KeyboardAvoidingView>
             ) : (
               <View className="gap-5 rounded-2xl border border-otto-border bg-otto-card p-6">
                 <View className="gap-2">

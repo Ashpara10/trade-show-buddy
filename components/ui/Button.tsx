@@ -21,14 +21,14 @@ type Props = {
 // Pressed bg comes from CSS variables defined in global.css so the brand
 // hover lives in one place.
 const variantRest: Record<Variant, string> = {
-  primary: 'bg-brand',
+  primary: 'bg-otto-accent',
   secondary: 'border border-otto-border bg-otto-card',
   ghost: '',
   danger: 'bg-otto-danger',
 };
 
 const variantLabel: Record<Variant, string> = {
-  primary: 'text-otto-text',
+  primary: 'text-white',
   secondary: 'text-otto-text',
   ghost: 'text-otto-muted',
   danger: 'text-white',
@@ -98,7 +98,7 @@ export function Button({
         // (the inline backgroundColor swap above is the primary signal).
         pressed && !isDisabled && !pressedBg ? 'opacity-80' : null
       )}
-      // style={dynamicStyle ?? disabledStyle}
+    // style={dynamicStyle ?? disabledStyle}
     >
       {loading ? (
         <ActivityIndicator

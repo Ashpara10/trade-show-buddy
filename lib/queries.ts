@@ -32,11 +32,15 @@ export const qk = {
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
+// `staleTime: Infinity` so the cached user identity is treated as
+// always-fresh. The user only changes on login/logout, both of which
+// already invalidate this key explicitly via qc.clear() / setQueryData.
+// Tab switches never re-fire this request.
 export function useMe() {
   return useQuery<AuthUser | null>({
     queryKey: qk.me,
     queryFn: fetchMe,
-    staleTime: 60_000,
+    staleTime: Infinity,
   });
 }
 
@@ -49,11 +53,16 @@ export function useLogout() {
 }
 
 // ── Events ──────────────────────────────────────────────────────────────────
+// `staleTime: Infinity` so switching tabs (which unmounts the screen
+// and re-mounts it on the way back) does NOT re-fire the request.
+// Events only change when the user creates a new one —
+// `useCreateEvent` invalidates this key on success, so the next read
+// picks up the new event. No time-based refetching.
 export function useEvents() {
   return useQuery<EventWithCount[]>({
     queryKey: qk.events,
     queryFn: fetchEvents,
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
 }
 
@@ -78,11 +87,17 @@ export function useSetInteractionEvent() {
 }
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
+// `staleTime: Infinity` so tab switches don't re-fire. The dashboard
+// only changes when the user takes an action that touches the
+// interaction set (delete recording, delete image, set interaction
+// event, regenerate deep-dive/image) — every one of those mutations
+// invalidates this key explicitly, so the next read picks up the
+// change. No time-based refetching.
 export function useDashboard() {
   return useQuery<DashboardResponse>({
     queryKey: qk.dashboard,
     queryFn: fetchDashboard,
-    staleTime: 10_000,
+    staleTime: Infinity,
   });
 }
 

@@ -1,10 +1,8 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -22,20 +20,19 @@ import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { RecorderButton } from '@/components/RecorderButton';
 import { ProspectImagePicker } from '@/components/ProspectImagePicker';
 import { EventSelector } from '@/components/ui/EventSelector';
-import { createEvent, fetchEvents } from '@/lib/auth-client';
+import { AddBusinessCard } from '@/components/AddBusinessCard';
 import {
   attachContactCard,
   resolveBadge,
   resolveCard,
   saveContactOnly,
   startScan,
-  uploadProspectImage,
-  fetchInteractionDetail,
   type CardContact,
   type ProspectCandidate,
 } from '@/lib/booth-client';
 import { getActiveEvent, setActiveEvent } from '@/lib/active-event';
-import type { ActiveEvent, EventWithCount, ProspectImage, ProspectMeta, ScanResult } from '@/lib/types';
+import { useCreateEvent, useEvents, useInteractionDetail } from '@/lib/queries';
+import type { ActiveEvent, ProspectImage, ProspectMeta, ScanResult } from '@/lib/types';
 import { colors } from '@/lib/theme';
 import { cn, normalizeLinkedInUrl } from '@/lib/utils';
 import { BOOTH_SLUG } from '@/lib/config';
@@ -80,7 +77,12 @@ function ScanScreenInner() {
   const [prospect, setProspect] = useState<ProspectMeta | null>(null);
   const [result, setResult] = useState<ScanResult | null>(null);
 
-  const [events, setEvents] = useState<EventWithCount[]>([]);
+  // Shared React Query cache — same query key as the dashboard's
+  // useEvents(). Both screens read from the same cache, and with
+  // `staleTime: Infinity` on useEvents / useDashboard (see
+  // lib/queries.ts), tab switches never re-fire.
+  const { data: events = [] } = useEvents();
+  const createEventMutation = useCreateEvent();
   const [activeEvent, setActiveEventState] = useState<ActiveEvent | null>(null);
 
   // Badge flow state
@@ -96,37 +98,47 @@ function ScanScreenInner() {
   const [cardSaving, setCardSaving] = useState(false);
   const cardFlowRef = useRef(false);
 
-  // Images for the post-scan picker (we fetch them so deletes reflect).
-  const [images, setImages] = useState<ProspectImage[]>([]);
+  // Images for the post-scan picker. Backed by the shared
+  // useInteractionDetail query — the ReadyView receives the cached
+  // images, and adding/deleting an image invalidates the query key
+  // (via the mutations in lib/queries) so the next read picks up the
+  // change. The hook is gated on the interaction id so it only fires
+  // once we have a result.
+  const interactionId = result?.interactionId ?? null;
+  const { data: detail } = useInteractionDetail(interactionId);
+  const images = useMemo<ProspectImage[]>(() => detail?.images ?? [], [detail?.images]);
 
-  // Load events + resolve the default selection.
+  // Resolve the default event selection from the cached list. Runs
+  // whenever the events cache changes (e.g. after a create) or the
+  // stored active-event changes. Idempotent: if we already picked an
+  // event and it's still in the list, leave it alone.
   useEffect(() => {
-    let cancel = false;
+    if (events.length === 0) return;
+    let cancelled = false;
     (async () => {
-      try {
-        const list = await fetchEvents();
-        if (cancel) return;
-        setEvents(list);
-        const stored = await getActiveEvent();
-        const chosen =
-          (stored && list.find((e) => e.id === stored.id)) ||
-          (stored && list.find((e) => e.name.toLowerCase() === stored.name.toLowerCase())) ||
-          list.find((e) => e.name.toLowerCase() === 'general networking') ||
-          list[0] ||
-          null;
-        if (chosen) {
-          const next = { id: chosen.id, name: chosen.name };
-          setActiveEventState(next);
-          await setActiveEvent(next);
-        }
-      } catch {
-        /* server falls back to General Networking */
-      }
+      const stored = await getActiveEvent();
+      if (cancelled) return;
+      const chosen =
+        (stored && events.find((e) => e.id === stored.id)) ||
+        (stored && events.find((e) => e.name.toLowerCase() === stored.name.toLowerCase())) ||
+        events.find((e) => e.name.toLowerCase() === 'general networking') ||
+        events[0] ||
+        null;
+      if (!chosen) return;
+      const next = { id: chosen.id, name: chosen.name };
+      setActiveEventState((prev) => {
+        if (prev?.id === next.id) return prev;
+        // Side-effect: persist. The setter is a pure update, so we
+        // kick off the persist outside setState to avoid the React
+        // warning about updating state during render.
+        void setActiveEvent(next);
+        return next;
+      });
     })();
     return () => {
-      cancel = true;
+      cancelled = true;
     };
-  }, []);
+  }, [events]);
 
   function chooseEvent(next: ActiveEvent) {
     setActiveEventState(next);
@@ -135,20 +147,10 @@ function ScanScreenInner() {
 
   async function handleCreateEvent(name: string): Promise<ActiveEvent | null> {
     try {
-      const ev = await createEvent(name);
-      setEvents((prev) => (prev.some((e) => e.id === ev.id) ? prev : [...prev, ev]));
+      const ev = await createEventMutation.mutateAsync(name);
       return { id: ev.id, name: ev.name };
     } catch {
       return null;
-    }
-  }
-
-  async function refetchImages(interactionId: string) {
-    try {
-      const detail = await fetchInteractionDetail(interactionId);
-      setImages(detail.images || []);
-    } catch {
-      /* non-critical */
     }
   }
 
@@ -207,7 +209,11 @@ function ScanScreenInner() {
         });
         setResult(final);
         setPhase('ready');
-        if (final?.interactionId) void refetchImages(final.interactionId);
+        // No need to manually fetch images — once `result` is set,
+        // `useInteractionDetail(result.interactionId)` kicks in and
+        // React Query handles the request. The Picker's
+        // onImagesChange just invalidates the query key (handled in
+        // lib/queries.ts).
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Scan failed.');
         setPhase('error');
@@ -422,7 +428,6 @@ function ScanScreenInner() {
               statusMessage={statusMessage}
               images={images}
               onScanAnother={reset}
-              onImagesChange={() => refetchImages(result.interactionId)}
             />
           )}
 
@@ -456,6 +461,7 @@ function EntryButton({
           ? 'bg-otto-accent shadow-lg shadow-otto-accent/20 active:bg-otto-accent-hover'
           : 'border border-otto-border bg-otto-card active:bg-otto-card-hover'
       )}>
+      {/* Icon container. */}
       <View
         className={cn(
           'h-9 w-9 shrink-0 items-center justify-center rounded-lg',
@@ -494,15 +500,15 @@ function IdleView({
 }) {
   return (
     <View className="items-center gap-5 py-8">
-      <View className="items-center gap-2">
+      <View className="items-center mb-4 gap-2">
         <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-otto-accent">
           Ready
         </Text>
-        <Text className="text-3xl font-semibold tracking-tight text-otto-text text-center">
+        <Text className="text-2xl font-semibold tracking-tight text-otto-text text-center">
           Capture a prospect
         </Text>
-        <Text className="text-[15px] text-otto-muted text-center">
-          Scan their badge, their business card, or their LinkedIn QR.
+        <Text className="text-[16px]  text-otto-muted/90 text-center">
+          Scan their badge, their business {"\n"} card, or their LinkedIn QR.
         </Text>
       </View>
 
@@ -535,20 +541,12 @@ function IdleView({
           subtitle="If they pull up their LinkedIn QR"
           icon={<HugeiconsIcon icon={QrCode01Icon} className="size-6" />}
         />
-        <Pressable
-          accessibilityRole="link"
-          onPress={() =>
-            Linking.openURL('https://www.linkedin.com/').catch(() => { })
-          }>
-          <Text className="text-[15px] font-medium text-otto-accent underline">
-            How to find the QR on LinkedIn →
-          </Text>
-        </Pressable>
       </View>
     </View>
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function BadgeIcon() {
   return (
     <View className="h-4 w-4">
@@ -560,6 +558,7 @@ function BadgeIcon() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CardIcon() {
   return (
     <View className="h-4 w-4">
@@ -571,6 +570,7 @@ function CardIcon() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function QrIcon() {
   return (
     <View className="h-4 w-4">
@@ -893,14 +893,12 @@ function ReadyView({
   statusMessage,
   images,
   onScanAnother,
-  onImagesChange,
 }: {
   prospect: ProspectMeta;
   result: ScanResult;
   statusMessage: string;
   images: ProspectImage[];
   onScanAnother: () => void;
-  onImagesChange: () => void;
 }) {
   return (
     <View className="gap-5">
@@ -924,10 +922,11 @@ function ReadyView({
         <RecorderButton interactionId={result.interactionId} recordingsCount={0} />
       </View>
 
-      <AddBusinessCard
-        interactionId={result.interactionId}
-        onSaved={onImagesChange}
-      />
+      {/* AddBusinessCard uses React Query (useUploadImage) which
+          invalidates the interaction detail key on success, so the
+          ProspectImagePicker below re-renders with the new image
+          without any explicit refetch callback. */}
+      <AddBusinessCard interactionId={result.interactionId} />
 
       <View className="rounded-2xl border border-otto-border bg-otto-card p-5">
         <ProspectImagePicker
@@ -947,82 +946,6 @@ function ReadyView({
         </Text>
       </Pressable>
     </View>
-  );
-}
-
-function AddBusinessCard({
-  interactionId,
-  onSaved,
-}: {
-  interactionId: string;
-  onSaved?: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  async function capture() {
-    try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Camera access denied. Enable it in Settings → Apps.');
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.7,
-        base64: true,
-        exif: false,
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      const base64 = asset.base64;
-      if (!base64) {
-        Alert.alert('Could not read the captured photo.');
-        return;
-      }
-      setBusy(true);
-      const outcome = await resolveCard({
-        images: [{ image: `data:${asset.mimeType || 'image/jpeg'};base64,${base64}` }],
-      });
-      if (
-        !outcome.contact.name &&
-        !outcome.contact.company &&
-        outcome.contact.emails.length === 0 &&
-        outcome.contact.phones.length === 0
-      ) {
-        Alert.alert("Couldn't read the card. Try again in good light.");
-        return;
-      }
-      await attachContactCard({ interactionId, contactCard: outcome.contact });
-      if (asset.uri) {
-        try {
-          await uploadProspectImage({
-            interactionId,
-            uri: asset.uri,
-            mime: asset.mimeType || 'image/jpeg',
-          });
-        } catch {
-          /* non-critical */
-        }
-      }
-      onSaved?.();
-    } catch (e) {
-      Alert.alert(e instanceof Error ? e.message : 'Could not read the card.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={busy}
-      onPress={() => void capture()}
-      className="flex-row items-center justify-center gap-2 rounded-xl bg-otto-accent px-5 py-3 shadow-lg shadow-otto-accent/20 active:bg-otto-accent-hover disabled:opacity-50">
-      <CardIcon />
-      <Text className="text-[17px] font-semibold text-white">
-        {busy ? 'Saving…' : 'Add business card'}
-      </Text>
-    </Pressable>
   );
 }
 

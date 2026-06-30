@@ -128,14 +128,14 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
           snapPoints={options.snapPoints ?? ['50%', '80%']}
           enablePanDownToClose={options.enableDismiss !== false}
           enableDynamicSizing={false}
-          // Smoother animation: 320ms with a gentle easing curve instead of
-          // the default 250ms exp curve (which has a sharp deceleration).
-          // Easing.bezier(0.16, 1, 0.3, 1) is the iOS "spring-like" curve
-          // — fast initial movement, slow landing, no overshoot. Works
-          // well for full-size modals where you want the sheet to feel
-          // like a real sheet of paper sliding in, not a snap.
+          // Snappier animation: 180ms — fast enough that picking an
+          // event in the dashboard filter feels instant (the dashboard
+          // row updates behind the sheet as it dismisses), slow enough
+          // to still read as a smooth slide. Easing.bezier(0.16, 1, 0.3, 1)
+          // is the iOS "spring-like" curve — fast initial movement, slow
+          // landing, no overshoot.
           animationConfigs={{
-            duration: 320,
+            duration: 180,
             easing: Easing.bezier(0.16, 1, 0.3, 1),
           }}
           onDismiss={() => {

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
-import { Button } from './Button';
 import { useBottomSheet } from '@/components/BottomSheet';
-import type { EventWithCount } from '@/lib/types';
 import { colors } from '@/lib/theme';
+import type { EventWithCount } from '@/lib/types';
+import { ArrowLeft02Icon, X } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react-native';
 
 type Props = {
   events: EventWithCount[];
@@ -48,7 +48,7 @@ export function EventSelector({ events, value, onChange, onCreate }: Props) {
           return created;
         }}
       />,
-      { title: 'Choose an event', snapPoints: ['50%', '80%'] }
+      { snapPoints: ['50%', '80%'] }
     );
   }
 
@@ -119,10 +119,19 @@ function EventSelectorSheet({
 
   if (creating) {
     return (
-      <View className="gap-3 p-2">
-        <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-otto-muted">
-          New event
-        </Text>
+      <View className="gap-3 p-2 mt-6">
+        <View className="flex-row mb-2 relative items-center justify-between gap-2">
+          <Text className="text-xl font-semibold text-otto-text">Create new event</Text>
+          <Pressable
+            onPress={() => {
+              setCreating(false);
+              setNewName('');
+              setError('');
+            }}
+            className="flex items-center justify-center size-8  rounded-full bg-neutral-200/60 ">
+            <HugeiconsIcon className='size-5' icon={X} strokeWidth={1.8} />
+          </Pressable>
+        </View>
         <TextInput
           autoFocus
           value={newName}
@@ -130,70 +139,65 @@ function EventSelectorSheet({
           placeholder="e.g. SaaStock 2026"
           placeholderTextColor={colors.muted}
           maxLength={80}
-          className="rounded-xl border border-otto-border bg-otto-bg px-4 py-2.5 text-sm text-otto-text focus:border-otto-accent"
+          className="rounded-xl border border-otto-border bg-otto-bg px-4 py-2.5 text-lg text-otto-text focus:border-otto-accent"
         />
-        {error ? <Text className="text-xs text-otto-danger">{error}</Text> : null}
+        {error ? <Text className="text-base text-otto-danger">{error}</Text> : null}
         <View className="flex-row gap-2">
           <View className="flex-1">
-            <Button
-              label={busy ? 'Adding…' : 'Add'}
+            <Pressable
               onPress={submitNew}
-              loading={busy}
               disabled={!newName.trim()}
-            />
+              className="py-4 w-full items-center justify-center rounded-2xl bg-otto-accent"
+            >
+              <Text className="text-lg font-semibold text-white">Add event</Text>
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => {
-              setCreating(false);
-              setNewName('');
-              setError('');
-            }}
-            className="min-h-[52px] items-center justify-center rounded-2xl border border-otto-border bg-otto-card px-5">
-            <Text className="text-sm text-otto-muted">Cancel</Text>
-          </Pressable>
+
         </View>
       </View>
     );
   }
 
   return (
-    <BottomSheetFlatList
-      data={events}
-      keyExtractor={(e) => e.id}
-      ItemSeparatorComponent={() => <View className="h-px bg-otto-border" />}
-      renderItem={({ item }) => (
+    // The parent <BottomSheetModal> already wraps its content in a
+    // <BottomSheetScrollView>, so a virtualised list (FlatList) here would
+    // trip RN's "VirtualizedLists nested in plain ScrollViews" warning and
+    // break windowing. We render a plain <ScrollView> instead — event lists
+    // are small (typically <20 items at a trade show) so the lack of
+    // virtualisation is fine and the sheet handles the scrolling.
+    <ScrollView
+      showsVerticalScrollIndicator
+      keyboardShouldPersistTaps="handled">
+      {events.map((item) => (
         <Pressable
+          key={item.id}
           accessibilityRole="button"
           onPress={() => onPick(item)}
-          className={`flex-row items-center justify-between rounded-xl px-3 py-3 ${
-            value === item.id ? 'bg-otto-accent-soft' : ''
-          }`}>
+          className={`flex-row items-center justify-between rounded-xl px-3 py-3 ${value === item.id ? 'bg-otto-accent-soft' : ''
+            }`}>
           <Text
-            className={`flex-1 text-base ${
-              value === item.id ? 'font-semibold text-otto-accent' : 'text-otto-text'
-            }`}
+            className={`flex-1 text-base ${value === item.id ? 'font-semibold text-otto-accent' : 'text-otto-text'
+              }`}
             numberOfLines={1}>
             {item.name}
           </Text>
           <Text
-            className={`shrink-0 text-xs tabular-nums ${
-              value === item.id ? 'text-otto-accent' : 'text-otto-muted'
-            }`}>
+            className={`shrink-0 text-sm tabular-nums ${value === item.id ? 'text-otto-accent' : 'text-otto-muted'
+              }`}>
             {item.scan_count}
           </Text>
         </Pressable>
-      )}
-      ListFooterComponent={
-        <View className="mt-2 border-t border-otto-border pt-2">
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setCreating(true)}
-            className="flex-row items-center gap-2 rounded-xl px-3 py-3">
-            <Text className="text-sm font-medium text-otto-accent">+</Text>
-            <Text className="text-sm font-medium text-otto-accent">New event…</Text>
-          </Pressable>
-        </View>
-      }
-    />
+      ))}
+      <View className="h-px mt-2 bg-otto-border" />
+      <View className="mt-2 ">
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setCreating(true)}
+          className="flex-row items-center gap-2 rounded-xl px-3 py-3">
+          <Text className="text-sm font-medium text-otto-accent">+</Text>
+          <Text className="text-sm font-medium text-otto-accent">New event…</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }

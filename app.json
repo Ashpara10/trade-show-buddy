@@ -32,7 +32,9 @@
         "backgroundColor": "#0a0a0a"
       }
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.otto.tsbmobile",
@@ -48,7 +50,18 @@
         "backgroundColor": "#0f3a25"
       },
       "package": "ai.otto.tsbmobile",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "791ec05e-f737-481a-9e8f-e9165aafca85"
+      }
     }
   }
 }

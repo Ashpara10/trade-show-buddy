@@ -50,8 +50,13 @@ export default function AppLayout() {
                 screenOptions={{
                   headerShown: false,
                   contentStyle: { backgroundColor: colors.bg },
-                  animation: 'fade',
-                  animationDuration: 200,
+                  // No Stack-level animation — the tab switch is a
+                  // hard cut so the content swap is seamless and the
+                  // AppHeader's underline indicator is the only thing
+                  // the user sees animating. The fade that was here
+                  // before added a 200ms delay where the previous
+                  // screen lingered in the background.
+                  animation: 'none',
                 }}>
                 <Stack.Screen name="scan" />
                 <Stack.Screen name="dashboard" />

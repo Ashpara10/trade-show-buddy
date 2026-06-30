@@ -14,6 +14,7 @@ import {
   transcriptStatusClass,
   transcriptStatusLabel,
 } from '@/lib/utils';
+import { AddBusinessCard } from './AddBusinessCard';
 import { DeepDivePanel } from './DeepDivePanel';
 import { EventTag } from './EventTag';
 import { ProspectImagePicker } from './ProspectImagePicker';
@@ -97,6 +98,11 @@ export function ProspectDetailSheet({ interactionId, onClose }: Props) {
         prospectImageUrl={detail.prospectImageUrl}
         fitment={detail.fitment}
         points={detail.talkingPoints}
+      />
+      {/* Add business card — same flow as the post-scan ReadyView. */}
+      <AddBusinessCard
+        interactionId={detail.interactionId}
+        onSaved={() => refetch()}
       />
 
       {/* Scan details card */}
@@ -198,6 +204,7 @@ export function ProspectDetailSheet({ interactionId, onClose }: Props) {
         initialDeepDive={detail.deepDive}
         pollUntilReady={!detail.deepDive}
       />
+
 
       {detail.deepDive ? (
         <Pressable
